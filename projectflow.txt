@@ -1,0 +1,84 @@
+----------------------------------------------------------------------------------
+
+1. Check kubectl and kustomize Installation on PowerShell
+
+kubectl version --client  (if not installed -> winget install Kubernetes.kubectl) (Also, make sure you dont have any conflicting kubectl installed ["Get-Command kubectl"])
+kustomize version
+
+2. Install 'kustomize' via wignet: "winget install --id=Kubernetes.kustomize -e"
+wignet handles - Downloading, Installing, And setting up PATH
+
+3. Download 'kustomize' via Chocolatey(optional):
+
+Install Chocolatey - Open PowerShell as Administrator and run:
+---
+Set-ExecutionPolicy Bypass -Scope Process -Force; `
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; `
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+---
+
+Install Kustomize:
+---
+choco install kustomize
+---
+
+Verify installation: kustomize version
+
+
+4. Resources Assumed: You have Docker, Minikube, kubectl, and kustomize already installed.
+
+5. Start a minikube cluster -> minikube start
+
+6. Check cluster status -> minikube status | kubectl get nodes
+
+7. Setting up the code repo/project
+
+a. Create a git repo, clone it in local
+b. Create a virtual environment named 'kbf' - conda create -n kbf python=3.10
+c. Activate the virtual environment - conda activate kbf
+d. copy the provided requirements.txt file and do "pip install kfp" (ignore this step and do - pip install kfp)
+e. Add the kubeflow_pipeline.py script to the project (it has the entire ML pipeline on iris dataset)
+
+8. Now we need to install Kubeflow
+
+a. Go to "https://www.kubeflow.org/docs/components/pipelines/legacy-v1/installation/localcluster-deployment/"
+b. From bash terminal run below command:
+---
+first run this -> export PIPELINE_VERSION=2.4.0
+Then run below 3 at once ->
+kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=$PIPELINE_VERSION"
+kubectl wait --for condition=established --timeout=60s crd/applications.app.k8s.io
+kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/env/platform-agnostic?ref=$PIPELINE_VERSION"
+---
+
+c. Check services status -> kubectl get all -n kubeflow (depending on your system, it'll take finally around 15-20min to get them all working)
+or you can also run -> kubectl get pod -A
+
+---
+Move ahead if you see all services running ->
+
+(kbf) PS C:\Users\Personal\Documents\kubeflow-practice-proj> kubectl get all -n kubeflow
+NAME                                                  READY   STATUS    RESTARTS      AGE
+pod/cache-deployer-deployment-86d88fd8-c5dd8          1/1     Running   0             29m
+pod/cache-server-699d6d4b58-c9zqx                     1/1     Running   0             29m
+pod/metadata-envoy-deployment-946867bf-tgz59          1/1     Running   0             29m
+pod/metadata-grpc-deployment-6c44975f56-pnrbt         1/1     Running   8 (15m ago)   29m
+pod/metadata-writer-844c8c496d-nx56x                  1/1     Running   0             29m
+pod/minio-5d5574b5cd-f4kxc                            1/1     Running   0             29m
+pod/ml-pipeline-7b8c745b88-x524c                      1/1     Running   5 (14m ago)   29m
+pod/ml-pipeline-persistenceagent-9cdb8686b-7z6jx      1/1     Running   3 (15m ago)   29m
+pod/ml-pipeline-scheduledworkflow-bcfc5899-5tnwg      1/1     Running   0             29m
+pod/ml-pipeline-ui-585dfd5955-nnrmt                   1/1     Running   0             29m
+pod/ml-pipeline-viewer-crd-cbb68b94-pxkm8             1/1     Running   0             29m
+pod/ml-pipeline-visualizationserver-55c694986-psvhg   1/1     Running   0             29m
+pod/mysql-85fd58798-vw9l5                             1/1     Running   0             29m
+pod/workflow-controller-7bc7b46bfd-nchx9              1/1     Running   0             29m
+---
+
+9. Access the UI (run on a separate terminal) -> kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
+
+10. Now, open a new terminal, activate the venv and run -> python kubeflow_pipeline.py (this will create a yaml file that we'll use to deploy on kf cluster)
+
+11. Now run -> kfp pipeline create -p IrisProject kubeflow_pipeline.yaml
+
+12. Now go back to UI and check the pipeline, you can now choose to create a run.
